@@ -35,7 +35,7 @@
         #xray-image {
             max-width: 100%;
             max-height: 80vh;
-            object-fit: contain;
+            
         }
         .measurement-point {
             position: absolute;
@@ -105,7 +105,8 @@
 
     <div id="xray-container"></div>
     <input type="file" id="xray-upload" accept="image/*">
-    <button id="rotate-right">Rotate</button>
+    <button id="rotate-left">Rotate Left</button>
+    <button id="rotate-right">Rotate Right</button>
 
     <div id="angle-display">
         <h2>Angle Measurement</h2>
@@ -207,7 +208,7 @@
             pointContainer.style.top = `${y}px`;
             pointContainer.style.transform = 'translate(-50%, -50%)';
 
-            const point = document.createElem~ent('div');
+            const point = document.createElement('div');
             point.classList.add('measurement-point');
             const arrow = document.createElement('div');
             arrow.classList.add('arrow');
