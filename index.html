@@ -105,8 +105,7 @@
 
     <div id="xray-container"></div>
     <input type="file" id="xray-upload" accept="image/*">
-    <button id="rotate-left">Rotate Left</button>
-    <button id="rotate-right">Rotate Right</button>
+    <button id="rotate-right">Rotate</button>
 
     <div id="angle-display">
         <h2>Angle Measurement</h2>
@@ -208,7 +207,7 @@
             pointContainer.style.top = `${y}px`;
             pointContainer.style.transform = 'translate(-50%, -50%)';
 
-            const point = document.createElement('div');
+            const point = document.createElem~ent('div');
             point.classList.add('measurement-point');
             const arrow = document.createElement('div');
             arrow.classList.add('arrow');
