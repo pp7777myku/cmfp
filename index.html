@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>X-ray Measurement Tool</title>
+    <style>
+        html {
+            touch-action: none;
+            zoom: 1.0 !important;
+        }
+        body {
+            font-family: Arial, sans-serif; /* 使用更正式的字体 */
+            background-color: #f4f4f4; /* 设置背景色 */
+            color: #333; /* 设置文本颜色 */
+        }
+        #xray-container {
+            position: relative;
+            display: inline-block;
+           text-align: center; /* 将按钮置于图片下方 */
+        }
+        #xray-upload,
+        #rotate-left,
+        #rotate-right {
+            background-color: #007bff; /* 设置按钮背景颜色 */
+            color: white; /* 设置按钮文字颜色 */
+            border: none; /* 去掉边框 */
+            padding: 5px 10px; /* 设置内边距 */
+            margin: 5px 0; /* 设置外边距 */
+            border-radius: 5px; /* 圆角按钮 */
+            cursor: pointer; /* 设置指针样式 */
+            display: block; /* 确保按钮位于新行 */
+            margin-top: 10px; /* 调整按钮之间的垂直间距 */
+        }
+        #xray-image {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+        .measurement-point {
+            position: absolute;
+            cursor: pointer;
+            user-select: none;
+            transform: translate(-50%, -100%);
+        }
+        .arrow {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 10px solid yellow;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .point-name-dropdown {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        .delete-button {
+            background-color: transparent;
+            color: red;
+            border: 1px solid red;
+            cursor: pointer;
+            position: absolute;
+            top: -5px;
+            right: 5px;
+            font-size: 10px;
+            padding: 1px 3px;
+            border-radius: 50%;
+        }
+        #points-table {
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        #points-table th, #points-table td {
+            border: 1px solid black;
+            padding: 5px;
+        }
+        #angle-display {
+            background-color: white; /* 设置背景色 */
+            padding: 15px; /* 设置内边距 */
+            margin-top: 20px; /* 设置外边距 */
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 添加阴影 */
+            border-radius: 5px; /* 圆角边框 */
+        }
+        #angle-display h2 {
+            color: #007bff; /* 设置标题颜色 */
+        }
+
+        #angle-display select {
+            padding: 5px; /* 设置下拉菜单内边距 */
+            border-radius: 5px; /* 圆角边框 */
+            border: 1px solid #ddd; /* 设置边框 */
+            margin-bottom: 10px; /* 设置外边距 */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="xray-container"></div>
+    <input type="file" id="xray-upload" accept="image/*">
+    <button id="rotate-left">Rotate Left</button>
+    <button id="rotate-right">Rotate Right</button>
+
+    <div id="angle-display">
+        <h2>Angle Measurement</h2>
+        <p><strong>Point 1:</strong> 
+            <select id="point1-select">
+                <!-- Point 1 dropdown options will be inserted here -->
+            </select>
+        </p>
+        <p><strong>Vertex:</strong> 
+            <select id="vertex-select">
+                <!-- Vertex dropdown options will be inserted here -->
+            </select>
+        </p>
+        <p><strong>Point 2:</strong> 
+            <select id="point2-select">
+                <!-- Point 2 dropdown options will be inserted here -->
+            </select>
+        </p>
+        <p id="angle-result"></p>
+    </div>
+
+    <table id="points-table">
+        <thead>
+            <tr>
+                <th>Point</th>
+                <th>Point Name</th>
+                <th>X Coordinate</th>
+                <th>Y Coordinate</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Points data will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        const xrayContainer = document.getElementById('xray-container');
+        const xrayUpload = document.getElementById('xray-upload');
+        const pointsTableBody = document.getElementById('points-table').querySelector('tbody');
+        const point1Select = document.getElementById('point1-select');
+        const point2Select = document.getElementById('point2-select');
+        const vertexSelect = document.getElementById('vertex-select');
+        const angleResult = document.getElementById('angle-result');
+        const rotateLeftButton = document.getElementById('rotate-left');
+        const rotateRightButton = document.getElementById('rotate-right');
+        let rotation = 0; // 用于追踪当前旋转度数
+
+        rotateLeftButton.addEventListener('click', function() {
+            rotation -= 90;
+            applyRotation();
+        });
+
+        rotateRightButton.addEventListener('click', function() {
+            rotation += 90;
+            applyRotation();
+        });
+
+        function applyRotation() {
+            const img = document.getElementById('xray-image');
+            if (img) {
+                img.style.transform = `rotate(${rotation}deg)`;
+            }
+        }
+
+
+        let pointIdCounter = 0;
+
+        xrayUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    xrayContainer.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.id = 'xray-image';
+                    img.src = e.target.result;
+                    xrayContainer.appendChild(img);
+
+                    img.addEventListener('click', function(e) {
+                        const rect = img.getBoundingClientRect();
+                        const scaleX = img.width / rect.width;
+                        const scaleY = img.height / rect.height;
+                        const x = (e.clientX - rect.left) * scaleX;
+                        const y = (e.clientY - rect.top) * scaleY;
+                        placePoint(x, y);
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function placePoint(x, y) {
+            const pointId = ++pointIdCounter;
+            const pointContainer = document.createElement('div');
+            pointContainer.id = 'point-' + pointId; // 使用生成的唯一ID
+
+            pointContainer.style.position = 'absolute';
+            pointContainer.style.left = `${x}px`;
+            pointContainer.style.top = `${y}px`;
+            pointContainer.style.transform = 'translate(-50%, -50%)';
+
+            const point = document.createElement('div');
+            point.classList.add('measurement-point');
+            const arrow = document.createElement('div');
+            arrow.classList.add('arrow');
+            point.appendChild(arrow);
+
+            const dropdown = document.createElement('select');
+            dropdown.classList.add('point-name-dropdown');
+            const pointNames = ["Select...", "N", "ANS(Sna)", "A", "ii", "is", "B", "Pg", "Gn", "Me", "Go", "Ar", "C", "Ba", "Po", "FPM(PT)", "PNS(Snp)", "Or", "S", "Se"];
+            for (const name of pointNames) {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                dropdown.appendChild(option);
+            }
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'X';
+            deleteButton.classList.add('delete-button');
+            deleteButton.addEventListener('click', function() {
+                xrayContainer.removeChild(pointContainer);
+                removePointFromTable(pointContainer);
+                updateDropdownOptions();
+                calculateAngle();
+            });
+
+            pointContainer.appendChild(deleteButton);
+            pointContainer.appendChild(dropdown);
+            pointContainer.appendChild(point);
+
+            xrayContainer.appendChild(pointContainer);
+
+            dropdown.addEventListener('change', function() {
+                addPointToTable(x, y, dropdown.value, pointContainer);
+                updateDropdownOptions();
+                calculateAngle();
+            });
+        }
+
+        function addPointToTable(x, y, name, pointContainer) {
+            // 检查是否已有该点的数据
+            const existingRow = pointsTableBody.querySelector(`[data-id="${pointContainer.id}"]`);
+            if (existingRow) {
+                // 如果存在，更新记录
+                existingRow.cells[1].textContent = name;
+                existingRow.cells[2].textContent = x.toFixed(2);
+                existingRow.cells[3].textContent = y.toFixed(2);
+            } else {
+                // 添加新行
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', pointContainer.id);
+                row.setAttribute('data-name', name); // 添加名称属性以便识别
+                const cellPoint = document.createElement('td');
+                const cellName = document.createElement('td');
+                const cellX = document.createElement('td');
+                const cellY = document.createElement('td');
+
+                cellPoint.textContent = pointsTableBody.children.length + 1;
+                cellName.textContent = name;
+                cellX.textContent = x.toFixed(2);
+                cellY.textContent = y.toFixed(2);
+
+                row.appendChild(cellPoint);
+                row.appendChild(cellName);
+                row.appendChild(cellX);
+                row.appendChild(cellY);
+                
+                pointsTableBody.appendChild(row);
+            }
+        }
+
+        function removePointFromTable(pointContainer) {
+            const row = pointsTableBody.querySelector(`[data-id="${pointContainer.id}"]`);
+            if (row) {
+                pointsTableBody.removeChild(row);
+            }
+            // Refresh table indices
+            Array.from(pointsTableBody.children).forEach((row, index) => {
+                row.cells[0].textContent = index + 1;
+            });
+        }
+
+        function updateDropdownOptions() {
+            const pointNames = ["Select..."];
+            Array.from(pointsTableBody.querySelectorAll('td:nth-child(2)')).forEach((cell) => {
+                pointNames.push(cell.textContent);
+            });
+
+            point1Select.innerHTML = '';
+            point2Select.innerHTML = '';
+            vertexSelect.innerHTML = '';
+
+            for (const name of pointNames) {
+                const option1 = document.createElement('option');
+                option1.value = name;
+                option1.textContent = name;
+
+                const option2 = document.createElement('option');
+                option2.value = name;
+                option2.textContent = name;
+
+                const option3 = document.createElement('option');
+                option3.value = name;
+                option3.textContent = name;
+
+                point1Select.appendChild(option1);
+                point2Select.appendChild(option2);
+                vertexSelect.appendChild(option3);
+            }
+        }
+
+        function calculateAngle() {
+            const selectedPoint1 = point1Select.value;
+            const selectedPoint2 = point2Select.value;
+            const selectedVertex = vertexSelect.value;
+
+            if (selectedPoint1 !== "Select..." && selectedPoint2 !== "Select..." && selectedVertex !== "Select...") {
+                const rows = Array.from(pointsTableBody.children);
+                const point1Index = rows.findIndex(row => row.querySelector('td:nth-child(2)').textContent === selectedPoint1);
+                const point2Index = rows.findIndex(row => row.querySelector('td:nth-child(2)').textContent === selectedPoint2);
+                const vertexIndex = rows.findIndex(row => row.querySelector('td:nth-child(2)').textContent === selectedVertex);
+
+                if (point1Index !== -1 && point2Index !== -1 && vertexIndex !== -1) {
+                    const point1X = parseFloat(rows[point1Index].querySelector('td:nth-child(3)').textContent);
+                    const point1Y = parseFloat(rows[point1Index].querySelector('td:nth-child(4)').textContent);
+                    const point2X = parseFloat(rows[point2Index].querySelector('td:nth-child(3)').textContent);
+                    const point2Y = parseFloat(rows[point2Index].querySelector('td:nth-child(4)').textContent);
+                    const vertexX = parseFloat(rows[vertexIndex].querySelector('td:nth-child(3)').textContent);
+                    const vertexY = parseFloat(rows[vertexIndex].querySelector('td:nth-child(4)').textContent);
+
+                    const angleRadians1 = Math.atan2(point1Y - vertexY, point1X - vertexX);
+                    const angleRadians2 = Math.atan2(point2Y - vertexY, point2X - vertexX);
+
+                    let angleDegrees = (angleRadians2 - angleRadians1) * (180 / Math.PI);
+
+                    if (angleDegrees < 0) {
+                        angleDegrees += 360;
+                    }
+                    if (angleDegrees > 180) {
+                        angleDegrees = 360 - angleDegrees;
+                    }
+                    angleResult.textContent = `The angle between ${selectedPoint1}, ${selectedVertex}, and ${selectedPoint2} is ${angleDegrees.toFixed(2)} degrees.`;
+                }
+            } else {
+                angleResult.textContent = '';
+            }
+        }
+
+        point1Select.addEventListener('change', calculateAngle);
+        point2Select.addEventListener('change', calculateAngle);
+        vertexSelect.addEventListener('change', calculateAngle);
+    </script>
+</body>
+</html>
